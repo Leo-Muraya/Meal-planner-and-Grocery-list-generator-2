@@ -1,6 +1,9 @@
 ## Meal Planner & Grocery List Generator
     A command-line application to manage recipes and ingredients using SQLite and Python.
 
+## Slide presentation link
+    https://docs.google.com/presentation/d/1eM3MHflDFDL57GTPS8028YgUqvEKaEFy1SUXo4170Bs/edit?usp=sharing
+
 ## Features
 
 1. Recipe Management: Add, list, and delete recipes.
