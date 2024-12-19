@@ -1,102 +1,96 @@
-import click
-from model import Recipe, Ingredient
-from database import create_tables
+import argparse
+from model import Recipe, Ingredient, setup_database
 
-create_tables()
+class MealPlannerCLI:
+    def __init__(self):
+        setup_database()  
+        
+        self.parser = argparse.ArgumentParser(description="Meal Planner CLI")
+        self.subparsers = self.parser.add_subparsers()
 
+        # Add Recipe 
+        self.add_recipe_parser = self.subparsers.add_parser('add_recipe', help="Add a new recipe")
+        self.add_recipe_parser.add_argument('name', type=str, help="Name of the recipe")
+        self.add_recipe_parser.add_argument('instructions', type=str, help="Instructions for the recipe")
+        self.add_recipe_parser.set_defaults(func=self.add_recipe)
 
-@click.group()
-def cli():
-    """Meal Planner CLI"""
-    pass
+        # List Recipes 
+        self.list_recipes_parser = self.subparsers.add_parser('list_recipes', help="List all recipes")
+        self.list_recipes_parser.set_defaults(func=self.list_recipes)
 
+        # Delete Recipe 
+        self.delete_recipe_parser = self.subparsers.add_parser('delete_recipe', help="Delete a recipe by ID")
+        self.delete_recipe_parser.add_argument('recipe_id', type=int, help="ID of the recipe to delete")
+        self.delete_recipe_parser.set_defaults(func=self.delete_recipe)
 
-@click.command()
-@click.argument('name')
-@click.argument('instructions')
-def add_recipe(name, instructions):
-    """Add a new recipe to the meal planner."""
-    recipe = Recipe(name, instructions)
-    recipe.save()
-    click.echo(f"Recipe '{name}' added successfully!")
+        # View Ingredients 
+        self.view_ingredients_parser = self.subparsers.add_parser('view_ingredients', help="View ingredients for a recipe")
+        self.view_ingredients_parser.add_argument('recipe_id', type=int, help="ID of the recipe to view ingredients for")
+        self.view_ingredients_parser.set_defaults(func=self.view_ingredients)
 
+        # Add Ingredient 
+        self.add_ingredient_parser = self.subparsers.add_parser('add_ingredient', help="Add an ingredient to a recipe")
+        self.add_ingredient_parser.add_argument('recipe_id', type=int, help="ID of the recipe")
+        self.add_ingredient_parser.add_argument('name', type=str, help="Name of the ingredient")
+        self.add_ingredient_parser.add_argument('quantity', type=str, help="Quantity of the ingredient")
+        self.add_ingredient_parser.set_defaults(func=self.add_ingredient)
 
-@click.command()
-def list_recipes():
-    """List all recipes in the meal planner."""
-    recipes = Recipe.get_all()
-    if recipes:
-        for recipe in recipes:
-            click.echo(f"{recipe.id}. {recipe.name}")
-    else:
-        click.echo("No recipes found.")
+        # Delete Ingredient 
+        self.delete_ingredient_parser = self.subparsers.add_parser('delete_ingredient', help="Delete an ingredient by ID")
+        self.delete_ingredient_parser.add_argument('ingredient_id', type=int, help="ID of the ingredient to delete")
+        self.delete_ingredient_parser.set_defaults(func=self.delete_ingredient)
 
+    def run(self):
+        args = self.parser.parse_args()
+        if hasattr(args, 'func'):
+            args.func(args)
+        else:
+            self.parser.print_help()
 
-@click.command()
-@click.argument('recipe_id', type=int)
-def delete_recipe(recipe_id):
-    """Delete a recipe by ID."""
-    recipe = Recipe.find_by_id(recipe_id)
-    if recipe:
-        recipe.delete()
-        click.echo(f"Recipe '{recipe.name}' deleted.")
-    else:
-        click.echo("Recipe not found.")
+    def add_recipe(self, args):
+        """Add a new recipe."""
+        recipe = Recipe.create(args.name, args.instructions)
+        print(f"Recipe '{recipe.name}' added successfully!")
 
+    def list_recipes(self, args):
+        """List all recipes."""
+        recipes = Recipe.get_all()
+        if recipes:
+            for recipe in recipes:
+                print(f"{recipe.id}. {recipe.name}")
+        else:
+            print("No recipes found.")
 
-@click.command()
-@click.argument('recipe_id', type=int)
-def view_ingredients(recipe_id):
-    """View ingredients for a specific recipe."""
-    ingredients = Ingredient.get_all_by_recipe(recipe_id)
-    if ingredients:
-        for ingredient in ingredients:
-            click.echo(f"{ingredient.name} - {ingredient.quantity}")
-    else:
-        click.echo("No ingredients found for this recipe.")
+    def delete_recipe(self, args):
+        """Delete a recipe."""
+        success = Recipe.delete(args.recipe_id)
+        if success:
+            print(f"Recipe with ID {args.recipe_id} deleted.")
+        else:
+            print("Recipe not found.")
 
+    def view_ingredients(self, args):
+        """View ingredients for a recipe."""
+        ingredients = Ingredient.get_all_for_recipe(args.recipe_id)
+        if ingredients:
+            for ingredient in ingredients:
+                print(f"{ingredient.name} - {ingredient.quantity}")
+        else:
+            print("No ingredients found for this recipe.")
 
-@click.command()
-@click.argument('recipe_id', type=int)
-@click.argument('name')
-@click.argument('quantity')
-def add_ingredient(recipe_id, name, quantity):
-    """Add an ingredient to a recipe."""
-    recipe = Recipe.find_by_id(recipe_id)
-    if recipe:
-        ingredient = Ingredient(name, quantity, recipe_id)
-        ingredient.save()
-        click.echo(f"Ingredient '{name}' added to recipe '{recipe.name}'.")
-    else:
-        click.echo("Recipe not found.")
+    def add_ingredient(self, args):
+        """Add an ingredient to a recipe."""
+        ingredient = Ingredient.create(args.name, args.quantity, args.recipe_id)
+        print(f"Ingredient '{ingredient.name}' added to recipe.")
 
-
-@click.command()
-@click.argument('ingredient_id', type=int)
-def delete_ingredient(ingredient_id):
-    """Delete an ingredient by ID."""
-    conn = connect_db()
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT * FROM ingredients WHERE id = ?', (ingredient_id,))
-    ingredient = cursor.fetchone()
-    
-    if ingredient:
-        ingredient_obj = Ingredient(id=ingredient[0], name=ingredient[1], quantity=ingredient[2], recipe_id=ingredient[3])
-        ingredient_obj.delete()
-        click.echo(f"Ingredient '{ingredient[1]}' deleted.")
-    else:
-        click.echo("Ingredient not found.")
-    conn.close()
-
-
-cli.add_command(add_recipe)
-cli.add_command(list_recipes)
-cli.add_command(delete_recipe)
-cli.add_command(view_ingredients)
-cli.add_command(add_ingredient)
-cli.add_command(delete_ingredient)
-
+    def delete_ingredient(self, args):
+        """Delete an ingredient."""
+        success = Ingredient.delete(args.ingredient_id)
+        if success:
+            print(f"Ingredient with ID {args.ingredient_id} deleted.")
+        else:
+            print("Ingredient not found.")
 
 if __name__ == '__main__':
-    cli()
+    cli = MealPlannerCLI()
+    cli.run()
