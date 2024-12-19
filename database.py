@@ -1,15 +1,27 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+import sqlite3
 
-Base = declarative_base()
+def connect_db():
+    """Connect to SQLite database."""
+    return sqlite3.connect('meal_planner.db')
 
-DATABASE_URL = "sqlite:///meal_planner.db"
-
-engine = create_engine(DATABASE_URL, echo=True)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create tables
-def init_db():
-    Base.metadata.create_all(bind=engine)
+def create_tables():
+    """Create the database tables if they do not exist."""
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Create Recipes Table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS recipes (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        instructions TEXT NOT NULL)''')
+    
+    # Create Ingredients Table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS ingredients (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        quantity TEXT NOT NULL,
+                        recipe_id INTEGER,
+                        FOREIGN KEY (recipe_id) REFERENCES recipes(id))''')
+    
+    conn.commit()
+    conn.close()
